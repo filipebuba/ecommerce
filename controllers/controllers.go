@@ -165,6 +165,7 @@ func SearchProduct() gin.HandlerFunc {
 			c.IndentedJSON(http.StatusInternalServerError, "something went wrong, please try after some time")
 			return
 		}
+
 		err = cursor.All(ctx, &productlist)
 
 		if err != nil {
