@@ -2,15 +2,16 @@ package tokens
 
 import (
 	"context"
+	"log"
+	"os"
+	"time"
+
 	"github.com/dgrijalva/jwt-go"
 	"github.com/filipebuba/ecommerce-yt/database"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"log"
-	"os"
-	"time"
 )
 
 type SignedDetails struct {
@@ -25,10 +26,10 @@ var UserData *mongo.Collection = database.UserData(database.Client, "UserS")
 
 var SECRET_KEY = os.Getenv("SECRET_KEY")
 
-func TokenGenerator(email, firt_name, last_name, uid string) (signedtoken string, segnedrefreshtoken string, err error) {
+func TokenGenerator(email string, first_name string, last_name string, uid string) (signedToken string, signedRefreshToken string, err error) {
 	claims := &SignedDetails{
 		Email:      email,
-		First_Name: firt_name,
+		First_Name: first_name,
 		Last_name:  last_name,
 		Uid:        uid,
 		StandardClaims: jwt.StandardClaims{
@@ -81,7 +82,7 @@ func ValidateToken(SignedToken string) (claims *SignedDetails, msg string) {
 	return claims, msg
 }
 
-func UpdateAllTokens(signedtoken string, signedrefreshtoken string, uid string) {
+func UpdateAllTokens(signedtoken string, signedrefreshtoken string, userid string) {
 	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 	var updateobj primitive.D
 
@@ -96,9 +97,7 @@ func UpdateAllTokens(signedtoken string, signedrefreshtoken string, uid string) 
 	opt := options.UpdateOptions{
 		Upsert: &upsert,
 	}
-	UserData.UpdateOne(ctx, filter, bson.D{
-		{"$set", updateobj}},
-		&opt)
+	_, err := UserData.UpdateOne(ctx, filter, bson.D{{Key: "$set", Value: updateobj}}, &opt)
 	defer cancel()
 	if err != nil {
 		log.Panic(err)

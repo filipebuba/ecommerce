@@ -9,6 +9,7 @@ import (
 
 	"github.com/filipebuba/ecommerce-yt/database"
 	"github.com/filipebuba/ecommerce-yt/models"
+	generate "github.com/filipebuba/ecommerce-yt/tokens"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"go.mongodb.org/mongo-driver/bson"
@@ -20,6 +21,7 @@ import (
 var UserCollection *mongo.Collection = database.UserData(database.Client, "Users")
 var prodCollection *mongo.Collection = database.ProductData(database.Client, "Products")
 var validate = validator.New()
+var ProductCollection *mongo.Collection
 
 func HashPassword(password string) string {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
@@ -41,7 +43,7 @@ func VerifyPassword(userPassword string, givenPassword string) (bool, string) {
 	return valid, msg
 }
 
-func Signup() gin.HandlerFunc {
+func SignUp() gin.HandlerFunc {
 
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
@@ -89,13 +91,13 @@ func Signup() gin.HandlerFunc {
 		user.Update_At, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
 		user.ID = primitive.NewObjectID()
 		user.User_ID = user.ID.Hex()
-		token, refreshtoken, _ := generate.TokenGenerator(*user.Email, user.First_Name, user.Last_Name, user.User_ID)
+		token, refreshtoken, _ := generate.TokenGenerator(*user.Email, *user.First_Name, *user.Last_Name, user.User_ID)
 		user.Token = &token
 		user.Refresh_Token = &refreshtoken
 		user.UserCart = make([]models.ProductUser, 0)
 		user.Address_Datails = make([]models.Address, 0)
 		user.Order_Status = make([]models.Order, 0)
-		_, inserterr := userCollection.InsertOne(ctx, user)
+		_, inserterr := UserCollection.InsertOne(ctx, user)
 		if inserterr != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "tre user did not get created"})
 			return
@@ -110,7 +112,7 @@ func Login() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		defer cancel()
-
+		var founduser models.User
 		var user models.User
 		if err := c.BindJSON(&user); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err})
@@ -146,7 +148,24 @@ func Login() gin.HandlerFunc {
 }
 
 func ProductViewerAdmin() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+		var products models.Product
+		defer cancel()
 
+		if err := c.BindJSON(&products); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		products.Product_ID = primitive.NewObjectID()
+		_, anyerr := prodCollection.InsertOne(ctx, products)
+		if anyerr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "not inserted"})
+			return
+		}
+		defer cancel()
+		c.JSON(http.StatusOK, "successfully added")
+	}
 }
 
 func SearchProduct() gin.HandlerFunc {
@@ -170,9 +189,9 @@ func SearchProduct() gin.HandlerFunc {
 			return
 		}
 
-		defer cursor.Close()
+		defer cursor.Close(ctx)
 
-		if err := cursor.err(); err != nil {
+		if err := cursor.Err(); err != nil {
 			log.Println(err)
 			c.IndentedJSON(400, "invalid")
 			return
@@ -207,7 +226,7 @@ func SearchProductByQuery() gin.HandlerFunc {
 			c.IndentedJSON(404, "something went wrong white fetching the data")
 			return
 		}
-		err = searchquerydb.All(ctx, &searchproducts)
+		err = searchquerydb.All(ctx, &SearchProduct)
 		if err != nil {
 			log.Println(err)
 			c.IndentedJSON(400, "invalid")
@@ -223,6 +242,6 @@ func SearchProductByQuery() gin.HandlerFunc {
 		}
 
 		defer cancel()
-		c.IndentedJSON(200, searchproducts)
+		c.IndentedJSON(200, SearchProduct)
 	}
 }

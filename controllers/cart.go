@@ -21,7 +21,7 @@ type Application struct {
 	userCollection *mongo.Collection
 }
 
-func NewAplication(prodCollection, userCollection *mongo.Collection) *Application {
+func NewApplication(prodCollection, userCollection *mongo.Collection) *Application {
 	return &Application{
 		prodCollection: prodCollection,
 		userCollection: userCollection,
@@ -209,7 +209,14 @@ func (app *Application) InstantBuy() gin.HandlerFunc {
 
 		defer cancel()
 
-		err = database.InstantBuyer(ctx, app.prodCollection, app.userCollection, productID, UserQueryID)
+		userID, err := primitive.ObjectIDFromHex(UserQueryID)
+		if err != nil {
+			log.Println(err)
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+
+		err = database.InstantBuyer(ctx, app.prodCollection, app.userCollection, productID.Hex(), userID)
 		if err != nil {
 			c.IndentedJSON(http.StatusInternalServerError, err)
 		}
