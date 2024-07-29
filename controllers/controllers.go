@@ -19,9 +19,7 @@ import (
 
 var UserCollection *mongo.Collection = database.UserData(database.Client, "Users")
 var prodCollection *mongo.Collection = database.ProductData(database.Client, "Products")
-
-// use a single instance of Validate, it caches struct info
-var validate *validator.Validate
+var validate = validator.New()
 
 func HashPassword(password string) string {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
@@ -32,7 +30,7 @@ func HashPassword(password string) string {
 }
 
 func VerifyPassword(userPassword string, givenPassword string) (bool, string) {
-	err := bcrypt.GenerateFromPassword([]byte(givenPassword), []byte(userPassword))
+	err := bcrypt.CompareHashAndPassword([]byte(givenPassword), []byte(userPassword))
 	valid := true
 	msg := ""
 
@@ -44,8 +42,6 @@ func VerifyPassword(userPassword string, givenPassword string) (bool, string) {
 }
 
 func Signup() gin.HandlerFunc {
-
-	validate = validator.New(validator.WithRequiredStructEnabled())
 
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
