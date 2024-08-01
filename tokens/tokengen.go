@@ -22,7 +22,7 @@ type SignedDetails struct {
 	jwt.StandardClaims
 }
 
-var UserData *mongo.Collection = database.UserData(database.Client, "UserS")
+var UserData *mongo.Collection = database.UserData(database.Client, "Users")
 
 var SECRET_KEY = os.Getenv("SECRET_KEY")
 
@@ -83,25 +83,23 @@ func ValidateToken(SignedToken string) (claims *SignedDetails, msg string) {
 }
 
 func UpdateAllTokens(signedtoken string, signedrefreshtoken string, userid string) {
-	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
-	var updateobj primitive.D
+    var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+    defer cancel()
 
-	updateobj = append(updateobj, bson.E{Key: "token", Value: signedtoken})
-	updateobj = append(updateobj, bson.E{Key: "token", Value: signedrefreshtoken})
-	updated_at, _ := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
-	updateobj = append(updateobj, bson.E{Key: "updated_at", Value: updated_at})
+    var updateobj primitive.D
+    updateobj = append(updateobj, bson.E{Key: "token", Value: signedtoken})
+    updateobj = append(updateobj, bson.E{Key: "refresh_token", Value: signedrefreshtoken})
+    updated_at, _ := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+    updateobj = append(updateobj, bson.E{Key: "updated_at", Value: updated_at})
 
-	upsert := true
+    upsert := true
+    filter := bson.M{"user_id": userid}
+    opt := options.UpdateOptions{
+        Upsert: &upsert,
+    }
 
-	filter := bson.M{"use_id": userid}
-	opt := options.UpdateOptions{
-		Upsert: &upsert,
-	}
-	_, err := UserData.UpdateOne(ctx, filter, bson.D{{Key: "$set", Value: updateobj}}, &opt)
-	defer cancel()
-	if err != nil {
-		log.Panic(err)
-		return
-	}
-
+    _, err := UserData.UpdateOne(ctx, filter, bson.D{{Key: "$set", Value: updateobj}}, &opt)
+    if err != nil {
+        log.Fatalf("failed to update tokens: %v", err)
+    }
 }
