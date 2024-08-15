@@ -13,41 +13,39 @@ import (
 )
 
 func main() {
-    // Obtém a porta do ambiente ou define como 8080 se não estiver definida
-    port := os.Getenv("PORT")
-    if port == "" {
-        port = "8080"
-    }
-
-	conn, err := database.DBSet()
-	if err != nil {
-		return err
+	// Obtém a porta do ambiente ou define como 8080 se não estiver definida
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
 	}
+
+	conn := database.DBSet()
+
+	prodCollection := database.ProductData(database.Client, "products")
+	userCollection := database.UserData(database.Client, "users")
 
 	repo := database.NewMongoRepository(conn)
 	service := service.NewService(repo)
 
-    // Cria uma nova aplicação com as coleções de produtos e usuários
-   
-	app := controllers.NewApplication(database.ProductData(database.Client, "products"),
-	database.UserData(database.Client, "users"), 
-	service)
-    // Cria um novo roteador Gin
-    router := gin.New()
-    router.Use(gin.Logger())
+	// Cria uma nova aplicação com as coleções de produtos e usuários
 
-    // Define as rotas de usuário
-    routes.UserRoutes(router)
+	app := controllers.NewApplication(service)
+	// Cria um novo roteador Gin
+	router := gin.New()
+	router.Use(gin.Logger())
 
-    // Adiciona middleware de autenticação
-    router.Use(middleware.Authentication())
+	// Define as rotas de usuário
+	routes.UserRoutes(router)
 
-    // Define as rotas da aplicação
-    router.GET("/addtocart", app.AddToCart())
-    router.GET("/removeitem", app.RemoveItem())
-    router.GET("/cartcheckout", app.BuyFromCart())
-    router.GET("/instantbuy", app.InstantBuy())
+	// Adiciona middleware de autenticação
+	router.Use(middleware.Authentication())
 
-    // Inicia o servidor na porta especificada
-    log.Fatal(router.Run(":" + port))
+	// Define as rotas da aplicação
+	router.GET("/addtocart", app.AddToCart())
+	router.GET("/removeitem", app.RemoveItem())
+	router.GET("/cartcheckout", app.BuyFromCart())
+	router.GET("/instantbuy", app.InstantBuy())
+
+	// Inicia o servidor na porta especificada
+	log.Fatal(router.Run(":" + port))
 }

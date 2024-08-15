@@ -12,21 +12,21 @@ type itemServiceImpl struct {
 	repo ports.ItemRepository
 }
 
-func NewService(repo ports.ItemRepository) ports.ItemService{
+func NewService(repo ports.ItemRepository) ports.ItemService {
 	return &itemServiceImpl{
 		repo: repo,
 	}
 }
 
-func (s *itemServiceImpl) AddProductToCart(ctx context.Context, productCollection, userCollection *mongo.Collection, productID primitive.ObjectID, userID string) error{
-	return s.repo.AddProductToCart(ctx, productCollection, userCollection, productID, userID) 
+func (s *itemServiceImpl) AddProductToCart(ctx context.Context, productID, userID string) error {
+	return s.repo.AddProductToCart(ctx, productID, userID)
 }
 
-func (s *itemServiceImpl) RemoveCartItem(ctx context.Context, prodCollection, userCollection *mongo.Collection, productID primitive.ObjectID, userID string) error{
+func (s *itemServiceImpl) RemoveCartItem(ctx context.Context, prodCollection, userCollection *mongo.Collection, productID primitive.ObjectID, userID string) error {
 	return s.repo.RemoveCartItem(ctx, prodCollection, userCollection, productID, userID)
 }
 
-func (s *itemServiceImpl) BuyItemFromCart(ctx context.Context, userCollection *mongo.Collection, userID string) error{
+func (s *itemServiceImpl) BuyItemFromCart(ctx context.Context, userCollection *mongo.Collection, userID string) error {
 	return s.repo.BuyItemFromCart(ctx, userCollection, userID)
 }
 

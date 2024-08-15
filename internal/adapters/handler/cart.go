@@ -17,15 +17,13 @@ import (
 )
 
 type Application struct {
-	itemService ports.ItemService
+	itemService    ports.ItemService
 	prodCollection *mongo.Collection
 	userCollection *mongo.Collection
 }
 
-func NewApplication(prodCollection, userCollection *mongo.Collection, itemService ports.ItemService) *Application {
+func NewApplication(itemService ports.ItemService) *Application {
 	return &Application{
-		prodCollection: prodCollection,
-		userCollection: userCollection,
 		itemService: itemService,
 	}
 }
@@ -76,6 +74,10 @@ func GetItemFromCart() gin.HandlerFunc {
 
 func (app *Application) AddToCart() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		var ctx, cancel = context.WithTimeout(c.Request.Context(), 5*time.Second)
+
+		defer cancel()
+
 		productQueryID := c.Query("id")
 		if productQueryID == "" {
 			log.Println("product id is empty")
@@ -91,23 +93,12 @@ func (app *Application) AddToCart() gin.HandlerFunc {
 			return
 		}
 
-		ProductID, err := primitive.ObjectIDFromHex(productQueryID)
-		if err != nil {
-			log.Println(err)
-			c.AbortWithStatus(http.StatusInternalServerError)
-			return
-		}
-
-		var ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
-
-		defer cancel()
-
-		err = app.itemService.AddProductToCart(ctx, app.prodCollection, app.userCollection, ProductID, userQueryID)
-
+		err := app.itemService.AddProductToCart(ctx, productQueryID, userQueryID)
 		if err != nil {
 			c.IndentedJSON(http.StatusInternalServerError, err)
 			return
 		}
+
 		c.IndentedJSON(200, "Seccessfully added to the cart")
 
 	}

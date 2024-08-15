@@ -23,37 +23,48 @@ var (
 	ErrCantBuyCartItem    = errors.New("cannot update the purchase")
 )
 
-type itemRepositoryImpl struct{
-	conn *mongo.Client
+type itemRepositoryImpl struct {
+	conn              *mongo.Client
+	userCollection    *mongo.Collection
+	productCollection *mongo.Collection
 }
 
-func NewMongoRepository(conn *mongo.Client) ports.ItemRepository{
+func NewMongoRepository(conn *mongo.Client, userCollection,
+	productCollection *mongo.Collection) ports.ItemRepository {
 	return &itemRepositoryImpl{
-		conn: conn,
+		conn:              conn,
+		userCollection:    userCollection,
+		productCollection: productCollection,
 	}
 }
 
-func (s *itemRepositoryImpl) AddProductToCart(ctx context.Context, productCollection, userCollection *mongo.Collection, productID primitive.ObjectID, userID string) error {
-	searchfromdb, err := productCollection.Find(ctx, bson.M{"_id": productID})
+func (s *itemRepositoryImpl) AddProductToCart(ctx context.Context, productID, userID string) error {
+	id, err := primitive.ObjectIDFromHex(productID)
+	if err != nil {
+		return err
+	}
+
+	searchfromdb, err := s.productCollection.Find(ctx, bson.M{"_id": id})
 	if err != nil {
 		log.Println(err)
 		return ErrCartFindProduct
 	}
+
 	var productCart []domain.ProductUser
 	if err = searchfromdb.All(ctx, &productCart); err != nil {
 		log.Println(err)
 		return ErrCantDecodeProducts
 	}
 
-	id, err := primitive.ObjectIDFromHex(userID)
+	idUser, err := primitive.ObjectIDFromHex(userID)
 	if err != nil {
 		log.Println(err)
 		return ErrUserIdsNotValid
 	}
-	filter := bson.D{primitive.E{Key: "_id", Value: id}}
+	filter := bson.D{primitive.E{Key: "_id", Value: idUser}}
 	update := bson.D{{Key: "$push", Value: bson.D{primitive.E{Key: "usercart", Value: bson.D{{Key: "$each", Value: productCart}}}}}}
 
-	_, err = userCollection.UpdateOne(ctx, filter, update)
+	_, err = s.userCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		log.Println(err)
 		return ErrCantUpdateUser
