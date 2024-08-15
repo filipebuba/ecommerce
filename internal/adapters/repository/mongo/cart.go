@@ -3,12 +3,14 @@ package database
 import (
 	"context"
 	"errors"
-	"github.com/filipebuba/ecommerce-yt/models"
+	"log"
+	"time"
+
+	"github.com/filipebuba/ecommerce-yt/internal/core/domain"
+	"github.com/filipebuba/ecommerce-yt/internal/core/ports"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"log"
-	"time"
 )
 
 var (
@@ -21,13 +23,23 @@ var (
 	ErrCantBuyCartItem    = errors.New("cannot update the purchase")
 )
 
-func AddProductToCart(ctx context.Context, productCollection, userCollection *mongo.Collection, productID primitive.ObjectID, userID string) error {
+type itemRepositoryImpl struct{
+	conn *mongo.Client
+}
+
+func NewMongoRepository(conn *mongo.Client) ports.ItemRepository{
+	return &itemRepositoryImpl{
+		conn: conn,
+	}
+}
+
+func (s *itemRepositoryImpl) AddProductToCart(ctx context.Context, productCollection, userCollection *mongo.Collection, productID primitive.ObjectID, userID string) error {
 	searchfromdb, err := productCollection.Find(ctx, bson.M{"_id": productID})
 	if err != nil {
 		log.Println(err)
 		return ErrCartFindProduct
 	}
-	var productCart []models.ProductUser
+	var productCart []domain.ProductUser
 	if err = searchfromdb.All(ctx, &productCart); err != nil {
 		log.Println(err)
 		return ErrCantDecodeProducts
@@ -50,7 +62,7 @@ func AddProductToCart(ctx context.Context, productCollection, userCollection *mo
 	return nil
 }
 
-func RemoveCartItem(ctx context.Context, prodCollection, userCollection *mongo.Collection, productID primitive.ObjectID, userID string) error {
+func (s *itemRepositoryImpl) RemoveCartItem(ctx context.Context, prodCollection, userCollection *mongo.Collection, productID primitive.ObjectID, userID string) error {
 	id, err := primitive.ObjectIDFromHex(userID)
 	if err != nil {
 		log.Println(err)
@@ -67,7 +79,7 @@ func RemoveCartItem(ctx context.Context, prodCollection, userCollection *mongo.C
 
 }
 
-func BuyItemFromCart(ctx context.Context, userCollection *mongo.Collection, userID string) error {
+func (s *itemRepositoryImpl) BuyItemFromCart(ctx context.Context, userCollection *mongo.Collection, userID string) error {
 	// fetch the cart of user
 	// find the cart total
 	// create an order with the items
@@ -80,12 +92,12 @@ func BuyItemFromCart(ctx context.Context, userCollection *mongo.Collection, user
 		log.Println(err)
 		return ErrUserIdsNotValid
 	}
-	var getCartItems models.User
-	var orderCart models.Order
+	var getCartItems domain.User
+	var orderCart domain.Order
 
 	orderCart.Order_ID = primitive.NewObjectID()
 	orderCart.Ordered_At = time.Now()
-	orderCart.Order_Cart = make([]models.ProductUser, 0)
+	orderCart.Order_Cart = make([]domain.ProductUser, 0)
 	orderCart.Payment_Method.COD = true
 
 	unwind := bson.D{{Key: "$unwind", Value: bson.D{primitive.E{Key: "Path", Value: "$usercart"}}}}
@@ -130,7 +142,7 @@ func BuyItemFromCart(ctx context.Context, userCollection *mongo.Collection, user
 		log.Println(err)
 	}
 
-	usercart_empty := make([]models.ProductUser, 0)
+	usercart_empty := make([]domain.ProductUser, 0)
 	filter3 := bson.D{primitive.E{Key: "_id", Value: id}}
 	update3 := bson.D{{Key: "$set", Value: bson.D{primitive.E{Key: "usercart", Value: usercart_empty}}}}
 	_, err = userCollection.UpdateMany(ctx, filter3, update3)
@@ -142,19 +154,19 @@ func BuyItemFromCart(ctx context.Context, userCollection *mongo.Collection, user
 	return nil
 }
 
-func InstantBuyer(ctx context.Context, prodCollection, userCollection *mongo.Collection, userID string, productID primitive.ObjectID) error {
+func (s *itemRepositoryImpl) InstantBuyer(ctx context.Context, prodCollection, userCollection *mongo.Collection, userID string, productID primitive.ObjectID) error {
 	id, err := primitive.ObjectIDFromHex(userID)
 	if err != nil {
 		log.Println(err)
 		return ErrUserIdsNotValid
 	}
 
-	var product_details models.ProductUser
-	var order_details models.Order
+	var product_details domain.ProductUser
+	var order_details domain.Order
 
 	order_details.Order_ID = primitive.NewObjectID()
 	order_details.Ordered_At = time.Now()
-	order_details.Order_Cart = make([]models.ProductUser, 0)
+	order_details.Order_Cart = make([]domain.ProductUser, 0)
 	order_details.Payment_Method.COD = true
 	err = prodCollection.FindOne(ctx, bson.D{primitive.E{Key: "_id", Value: productID}}).Decode(&product_details)
 	if err != nil {

@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/filipebuba/ecommerce-yt/database"
-	"github.com/filipebuba/ecommerce-yt/models"
+	"github.com/filipebuba/ecommerce-yt/internal/adapters/repository/mongo"
+	"github.com/filipebuba/ecommerce-yt/internal/core/domain"
 	generate "github.com/filipebuba/ecommerce-yt/tokens"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -49,7 +49,7 @@ func SignUp() gin.HandlerFunc {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		defer cancel()
 
-		var user models.User
+		var user domain.User
 		if err := c.BindJSON(&user); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -94,9 +94,9 @@ func SignUp() gin.HandlerFunc {
 		token, refreshtoken, _ := generate.TokenGenerator(*user.Email, *user.First_Name, *user.Last_Name, user.User_ID)
 		user.Token = &token
 		user.Refresh_Token = &refreshtoken
-		user.UserCart = make([]models.ProductUser, 0)
-		user.Address_Datails = make([]models.Address, 0)
-		user.Order_Status = make([]models.Order, 0)
+		user.UserCart = make([]domain.ProductUser, 0)
+		user.Address_Datails = make([]domain.Address, 0)
+		user.Order_Status = make([]domain.Order, 0)
 		_, inserterr := UserCollection.InsertOne(ctx, user)
 		if inserterr != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "tre user did not get created"})
@@ -112,8 +112,8 @@ func Login() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		defer cancel()
-		var founduser models.User
-		var user models.User
+		var founduser domain.User
+		var user domain.User
 		if err := c.BindJSON(&user); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err})
 			return
@@ -150,7 +150,7 @@ func Login() gin.HandlerFunc {
 func ProductViewerAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
-		var products models.Product
+		var products domain.Product
 		defer cancel()
 
 		if err := c.BindJSON(&products); err != nil {
@@ -171,7 +171,7 @@ func ProductViewerAdmin() gin.HandlerFunc {
 func SearchProduct() gin.HandlerFunc {
 	return func(c *gin.Context) {
 
-		var productlist []models.Product
+		var productlist []domain.Product
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		defer cancel()
 
@@ -205,7 +205,7 @@ func SearchProduct() gin.HandlerFunc {
 
 func SearchProductByQuery() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var SearchProduct []models.Product
+		var SearchProduct []domain.Product
 		queryParam := c.Query("name")
 
 		// you want to check if it's empty

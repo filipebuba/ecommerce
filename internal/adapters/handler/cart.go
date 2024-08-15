@@ -7,24 +7,26 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/filipebuba/ecommerce-yt/models"
+	"github.com/filipebuba/ecommerce-yt/internal/core/domain"
+	"github.com/filipebuba/ecommerce-yt/internal/core/ports"
 	"go.mongodb.org/mongo-driver/bson"
 
-	"github.com/filipebuba/ecommerce-yt/database"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type Application struct {
+	itemService ports.ItemService
 	prodCollection *mongo.Collection
 	userCollection *mongo.Collection
 }
 
-func NewApplication(prodCollection, userCollection *mongo.Collection) *Application {
+func NewApplication(prodCollection, userCollection *mongo.Collection, itemService ports.ItemService) *Application {
 	return &Application{
 		prodCollection: prodCollection,
 		userCollection: userCollection,
+		itemService: itemService,
 	}
 }
 
@@ -43,7 +45,7 @@ func GetItemFromCart() gin.HandlerFunc {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		defer cancel()
 
-		var filledcart models.User
+		var filledcart domain.User
 		err := UserCollection.FindOne(ctx, bson.D{primitive.E{Key: "_id", Value: usert_id}}).Decode(&filledcart)
 
 		if err != nil {
@@ -100,7 +102,7 @@ func (app *Application) AddToCart() gin.HandlerFunc {
 
 		defer cancel()
 
-		err = database.RemoveCartItem(ctx, app.prodCollection, app.userCollection, ProductID, userQueryID)
+		err = app.itemService.AddProductToCart(ctx, app.prodCollection, app.userCollection, ProductID, userQueryID)
 
 		if err != nil {
 			c.IndentedJSON(http.StatusInternalServerError, err)
@@ -140,7 +142,7 @@ func (app *Application) RemoveItem() gin.HandlerFunc {
 
 		defer cancel()
 
-		err = database.RemoveCartItem(ctx, app.prodCollection, app.userCollection, productID, userQueryID)
+		err = app.itemService.RemoveCartItem(ctx, app.prodCollection, app.userCollection, productID, userQueryID)
 		if err != nil {
 			c.IndentedJSON(http.StatusInternalServerError, err)
 			return
@@ -171,7 +173,7 @@ func (app *Application) BuyFromCart() gin.HandlerFunc {
 
 		defer cancel()
 
-		err := database.BuyItemFromCart(ctx, app.userCollection, UserQueryID)
+		err := app.itemService.BuyItemFromCart(ctx, app.userCollection, UserQueryID)
 		if err != nil {
 			c.IndentedJSON(http.StatusInternalServerError, err)
 		}
@@ -216,7 +218,7 @@ func (app *Application) InstantBuy() gin.HandlerFunc {
 			return
 		}
 
-		err = database.InstantBuyer(ctx, app.prodCollection, app.userCollection, productID.Hex(), userID)
+		err = app.itemService.InstantBuyer(ctx, app.prodCollection, app.userCollection, productID.Hex(), userID)
 		if err != nil {
 			c.IndentedJSON(http.StatusInternalServerError, err)
 		}

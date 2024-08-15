@@ -3,12 +3,13 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
 	"net/http"
 	"time"
 
-	"github.com/filipebuba/ecommerce-yt/models"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+
+	"github.com/filipebuba/ecommerce-yt/internal/core/domain"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -28,7 +29,7 @@ func AddAdress() gin.HandlerFunc {
 			return
 		}
 
-		var addresses models.Address
+		var addresses domain.Address
 
 		addresses.Address_id = primitive.NewObjectID()
 
@@ -87,7 +88,7 @@ func EditHomeAddress() gin.HandlerFunc {
 			c.IndentedJSON(500, "Internal Server Error")
 		}
 
-		var editaddress models.Address
+		var editaddress domain.Address
 		if err = c.BindJSON(&editaddress); err != nil {
 			c.IndentedJSON(http.StatusBadRequest, err.Error())
 		}
@@ -128,7 +129,7 @@ func EditWorkAddress() gin.HandlerFunc {
 			c.IndentedJSON(500, "Internal Server Error")
 		}
 
-		var editaddress models.Address
+		var editaddress domain.Address
 		if err = c.BindJSON(&editaddress); err != nil {
 			c.IndentedJSON(http.StatusBadRequest, err.Error())
 		}
@@ -163,7 +164,7 @@ func DeleteAddress() gin.HandlerFunc {
 			return
 		}
 
-		addresses := make([]models.Address, 0)
+		addresses := make([]domain.Address, 0)
 		usert_id, err := primitive.ObjectIDFromHex(user_id)
 		if err != nil {
 			c.IndentedJSON(500, "Internal Server Error")
