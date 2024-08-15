@@ -24,7 +24,7 @@ func main() {
 	prodCollection := database.ProductData(database.Client, "products")
 	userCollection := database.UserData(database.Client, "users")
 
-	repo := database.NewMongoRepository(conn)
+	repo := database.NewMongoRepository(conn, prodCollection, userCollection)
 	service := service.NewService(repo)
 
 	// Cria uma nova aplicação com as coleções de produtos e usuários

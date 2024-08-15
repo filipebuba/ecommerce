@@ -75,7 +75,6 @@ func GetItemFromCart() gin.HandlerFunc {
 func (app *Application) AddToCart() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(c.Request.Context(), 5*time.Second)
-
 		defer cancel()
 
 		productQueryID := c.Query("id")
